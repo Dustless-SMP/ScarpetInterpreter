@@ -41,7 +41,7 @@ public class Operators {
         expression.addBinaryOperator("/", "multiplication*/%", true, Value::divide);
         expression.addBinaryOperator("%", "multiplication*/%", true, (v1, v2) ->
                 new NumericValue(NumericValue.asNumber(v1).getDouble() % NumericValue.asNumber(v2).getDouble()));
-        expression.addBinaryOperator("^", "exponent^", false, (v1, v2) ->
+        expression.addBinaryOperator("**", "exponent**", false, (v1, v2) ->
                 new NumericValue(Math.pow(NumericValue.asNumber(v1).getDouble(), NumericValue.asNumber(v2).getDouble())));
 
         expression.addLazyBinaryOperator("&&", "and&&", false, (c, t, lv1, lv2) ->
