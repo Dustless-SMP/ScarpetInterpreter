@@ -1,12 +1,8 @@
 # Scarpet interpreter
 
-## Explanation
-Scarpet is a quick-to-run programming language, invented as a way to make Minecraft modifications more quickly
-[(in a nutshell, see here for a better description)](https://github.com/gnembon/fabric-carpet).
+Kinda nicked off of here: https://github.com/Advait-Sen/ScarpetInterpreter
 
-Seeing its potential as more than just a cool and underused feature in a video game, I decided to take it and make it into
-a tool for making easy APIs. The idea is that you add this package into your project, and can then use it as an API language,
-as it is a scripting tool that can be used to do cool things with your API while using simple and easy-flowing syntax.
+This implementation of scarpet is just a whole lot easier to use, so we're using it.
+It's modified to work in java 8, and will be used in https://github.com/Dustless-SMP/Scarpet-1.12.
 
-## API stuff
-todo
+It's meant to be a bare-bones version which is easy to transfer manually, and which will then be archived.

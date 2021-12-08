@@ -21,8 +21,8 @@ public class SystemFunctions {
     // %[argument_index$][flags][width][.precision][t]conversion
     private static final Pattern formatPattern = Pattern.compile("%(\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])");
 
-    public static void apply(Expression expression){
-        expression.addUnaryFunction("print", v-> {
+    public static void apply(Expression expression) {
+        expression.addUnaryFunction("print", v -> {
             String s = v.getString();
             Expression.print(s);
             return StringValue.of(s);
@@ -123,8 +123,7 @@ public class SystemFunctions {
             return (cc, tt) -> retval;
         });
 
-        expression.addUnaryFunction("sleep", (v) ->
-        {
+        expression.addUnaryFunction("sleep", (v) -> {
             long time = NumericValue.asNumber(v).getLong();
             try {
                 Thread.sleep(time);
@@ -133,9 +132,9 @@ public class SystemFunctions {
             }
             return v; // pass through for variables
         });
-        expression.addLazyFunction("time", 0, (c, t, lv) ->
-        {
-            Value time = new NumericValue((System.nanoTime() / 1000) / 1000.0);
+
+        expression.addLazyFunction("time", 0, (c, t, lv) -> {
+            Value time = new NumericValue(System.currentTimeMillis() / 1000.0);
             return (cc, tt) -> time;
         });
 
@@ -146,8 +145,7 @@ public class SystemFunctions {
             return c.getVariable(varname);
         });
 
-        expression.addLazyFunction("undef", 1, (c, t, lv) ->
-        {
+        expression.addLazyFunction("undef", 1, (c, t, lv) -> {
             String varname = lv.get(0).evalValue(c).getString();
             if (varname.startsWith("_"))
                 throw new InternalExpressionException("Cannot replace local built-in variables, i.e. those that start with '_'");
@@ -167,7 +165,6 @@ public class SystemFunctions {
             return (cc, tt) -> Value.NULL;
         });
 
-
         expression.addLazyFunction("vars", 1, (c, t, lv) -> {
             String prefix = lv.get(0).evalValue(c).getString();
             List<Value> values = new ArrayList<>();
@@ -185,6 +182,7 @@ public class SystemFunctions {
             Value retval = ListValue.wrap(values);
             return (cc, tt) -> retval;
         });
+
 
     }
 }

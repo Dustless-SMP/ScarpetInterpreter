@@ -20,8 +20,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.lang.Math.abs;
-
 public class LoopsAndHigherOrderFunctions {
     public static void apply(Expression expression) {
         expression.addFunction("l", lv -> {

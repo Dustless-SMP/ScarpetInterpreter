@@ -33,6 +33,10 @@ public class ListValue extends AbstractListValue implements ContainerValueInterf
         return ListValue.wrap(Arrays.asList(list));
     }
 
+    public List<Value> unpack(){
+        return items;
+    }
+
     /**
      * Finds a proper list index >=0 and < len that correspont to the rolling index value of idx
      */
@@ -93,6 +97,8 @@ public class ListValue extends AbstractListValue implements ContainerValueInterf
     }
 
     public void append(Value v) {
+        if(v instanceof AbstractListValue)
+            extend(((AbstractListValue) v).unpack());
         items.add(v);
     }
 
@@ -199,8 +205,7 @@ public class ListValue extends AbstractListValue implements ContainerValueInterf
     }
 
     public void extend(List<Value> subList) {
-        for (Value v : subList)
-            items.add(v);
+        items.addAll(subList);
     }
 
     public void addAtIndex(int index, List<Value> subList) {
@@ -246,7 +251,7 @@ public class ListValue extends AbstractListValue implements ContainerValueInterf
 
     @Override
     public double readNumber() {
-        return (double) items.size();
+        return items.size();
     }
 
     @Override

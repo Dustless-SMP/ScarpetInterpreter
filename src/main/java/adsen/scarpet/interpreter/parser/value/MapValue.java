@@ -105,10 +105,11 @@ public class MapValue extends AbstractListValue implements ContainerValueInterfa
     }
 
     public void put(Value v) {
-        if (!(v instanceof ListValue pair)) {
+        if (!(v instanceof ListValue)) {
             map.put(v, Value.NULL);
             return;
         }
+        ListValue pair = (ListValue) v;
         if (pair.getItems().size() != 2) {
             throw new InternalExpressionException("Map constructor requires elements that have two items");
         }

@@ -181,9 +181,9 @@ public class Expression implements Cloneable {
         return copy;
     }
 
-    public void addLazyUnaryOperator(String surface, int precedence, boolean leftAssoc,
+    public void addLazyUnaryOperator(String surface, String precedence, boolean leftAssoc,
                                      TriFunction<Context, Integer, LazyValue, LazyValue> lazyfun) {
-        operators.put(surface + "u", new AbstractLazyOperator(precedence, leftAssoc) {
+        operators.put(surface + "u", new AbstractLazyOperator(Operators.precedence.get(precedence), leftAssoc) {
             @Override
             public LazyValue lazyEval(Context c, Integer t, Expression e, Tokenizer.Token token, LazyValue v, LazyValue v2) {
                 try {
@@ -201,9 +201,9 @@ public class Expression implements Cloneable {
         });
     }
 
-    public void addLazyBinaryOperatorWithDelegation(String surface, int precedence, boolean leftAssoc,
+    public void addLazyBinaryOperatorWithDelegation(String surface, String precedence, boolean leftAssoc,
                                                     SexFunction<Context, Integer, Expression, Tokenizer.Token, LazyValue, LazyValue, LazyValue> lazyfun) {
-        operators.put(surface, new AbstractLazyOperator(precedence, leftAssoc) {
+        operators.put(surface, new AbstractLazyOperator(Operators.precedence.get(precedence), leftAssoc) {
             @Override
             public LazyValue lazyEval(Context c, Integer type, Expression e, Tokenizer.Token t, LazyValue v1, LazyValue v2) {
                 try {
@@ -219,9 +219,9 @@ public class Expression implements Cloneable {
         });
     }
 
-    public void addLazyBinaryOperator(String surface, int precedence, boolean leftAssoc,
+    public void addLazyBinaryOperator(String surface, String precedence, boolean leftAssoc,
                                       QuadFunction<Context, Integer, LazyValue, LazyValue, LazyValue> lazyfun) {
-        operators.put(surface, new AbstractLazyOperator(precedence, leftAssoc) {
+        operators.put(surface, new AbstractLazyOperator(Operators.precedence.get(precedence), leftAssoc) {
             @Override
             public LazyValue lazyEval(Context c, Integer t, Expression e, Tokenizer.Token token, LazyValue v1, LazyValue v2) {
                 try {
@@ -245,8 +245,8 @@ public class Expression implements Cloneable {
         });
     }
 
-    public void addBinaryOperator(String surface, int precedence, boolean leftAssoc, BiFunction<Value, Value, Value> fun) {
-        operators.put(surface, new AbstractOperator(precedence, leftAssoc) {
+    public void addBinaryOperator(String surface, String precedence, boolean leftAssoc, BiFunction<Value, Value, Value> fun) {
+        operators.put(surface, new AbstractOperator(Operators.precedence.get(precedence), leftAssoc) {
             @Override
             public Value eval(Value v1, Value v2) {
                 Value.assertNotNull(v1, v2);
@@ -398,7 +398,9 @@ public class Expression implements Cloneable {
                 throw new ExpressionException("Script ended prematurely");
             }
             switch (token.type) {
-                case STRING, LITERAL, HEX_LITERAL -> {
+                case STRING:
+                case LITERAL:
+                case HEX_LITERAL: {
                     if (previousToken != null && (
                             previousToken.type == Tokenizer.Token.TokenType.LITERAL ||
                                     previousToken.type == Tokenizer.Token.TokenType.HEX_LITERAL ||
@@ -406,13 +408,17 @@ public class Expression implements Cloneable {
                         throw new ExpressionException(this, token, "Missing operator");
                     }
                     outputQueue.add(token);
+                    break;
                 }
-                case VARIABLE -> outputQueue.add(token);
-                case FUNCTION -> {
+                case VARIABLE:
+                    outputQueue.add(token);
+                    break;
+                case FUNCTION: {
                     stack.push(token);
                     lastFunction = token;
+                    break;
                 }
-                case COMMA -> {
+                case COMMA: {
                     if (previousToken != null && previousToken.type == Tokenizer.Token.TokenType.OPERATOR) {
                         throw new ExpressionException(this, previousToken, "Missing parameter(s) for operator ");
                     }
@@ -426,8 +432,9 @@ public class Expression implements Cloneable {
                             throw new ExpressionException(this, lastFunction, "Parse error for function");
                         }
                     }
+                    break;
                 }
-                case OPERATOR -> {
+                case OPERATOR: {
                     if (previousToken != null
                             && (previousToken.type == Tokenizer.Token.TokenType.COMMA || previousToken.type == Tokenizer.Token.TokenType.OPEN_PAREN)) {
                         throw new ExpressionException(this, token, "Missing parameter(s) for operator '" + token + "'");
@@ -439,8 +446,9 @@ public class Expression implements Cloneable {
 
                     shuntOperators(outputQueue, stack, o1);
                     stack.push(token);
+                    break;
                 }
-                case UNARY_OPERATOR -> {
+                case UNARY_OPERATOR: {
                     if (previousToken != null && previousToken.type != Tokenizer.Token.TokenType.OPERATOR
                             && previousToken.type != Tokenizer.Token.TokenType.COMMA && previousToken.type != Tokenizer.Token.TokenType.OPEN_PAREN) {
                         throw new ExpressionException(this, token, "Invalid position for unary operator " + token);
@@ -452,8 +460,9 @@ public class Expression implements Cloneable {
 
                     shuntOperators(outputQueue, stack, o1);
                     stack.push(token);
+                    break;
                 }
-                case OPEN_PAREN -> {
+                case OPEN_PAREN: {
                     if (previousToken != null) {
                         if (previousToken.type == Tokenizer.Token.TokenType.LITERAL || previousToken.type == Tokenizer.Token.TokenType.CLOSE_PAREN
                                 || previousToken.type == Tokenizer.Token.TokenType.VARIABLE
@@ -471,8 +480,9 @@ public class Expression implements Cloneable {
                         }
                     }
                     stack.push(token);
+                    break;
                 }
-                case CLOSE_PAREN -> {
+                case CLOSE_PAREN: {
                     if (previousToken != null && previousToken.type == Tokenizer.Token.TokenType.OPERATOR) {
                         throw new ExpressionException(this, previousToken, "Missing parameter(s) for operator " + previousToken);
                     }
@@ -486,13 +496,15 @@ public class Expression implements Cloneable {
                     if (!stack.isEmpty() && stack.peek().type == Tokenizer.Token.TokenType.FUNCTION) {
                         outputQueue.add(stack.pop());
                     }
+                    break;
                 }
-                case MARKER -> {
+                case MARKER: {
                     if ("$".equals(token.surface)) {
                         StringBuilder sb = new StringBuilder(expression);
                         sb.setCharAt(token.pos, '\n');
                         expression = sb.toString();
                     }
+                    break;
                 }
             }
             if (token.type != Tokenizer.Token.TokenType.MARKER) previousToken = token;
@@ -522,7 +534,7 @@ public class Expression implements Cloneable {
 
     public void displayOutput() {//Displays the output, i.e the finally evaluated expression.
         try {
-            printFunction.accept(eval(Context.simpleParse()).getString());
+            printFunction.accept(" = " + eval(Context.simpleParse()).getString());
         } catch (ExpressionException e) {
             throw new ScarpetExpressionException(e.getMessage());
         } catch (ArithmeticException ae) {
@@ -547,27 +559,30 @@ public class Expression implements Cloneable {
         validate(rpn);
         for (final Tokenizer.Token token : rpn) {
             switch (token.type) {
-                case UNARY_OPERATOR -> {
+                case UNARY_OPERATOR: {
                     final LazyValue value = stack.pop();
                     LazyValue result = (c, t) -> operators.get(token.surface).lazyEval(c, t, this, token, value, null).evalValue(c);
                     stack.push(result);
+                    break;
                 }
-                case OPERATOR -> {
+                case OPERATOR: {
                     final LazyValue v1 = stack.pop();
                     final LazyValue v2 = stack.pop();
                     LazyValue result = (c, t) -> operators.get(token.surface).lazyEval(c, t, this, token, v2, v1).evalValue(c);
                     stack.push(result);
+                    break;
                 }
-                case VARIABLE -> stack.push((c, t) ->
-                {
-                    if (!c.isAVariable(token.surface)) // new variable
-                    {
-                        c.setVariable(token.surface, (cc, tt) -> Value.ZERO.reboundedTo(token.surface));
-                    }
-                    LazyValue lazyVariable = c.getVariable(token.surface);
-                    return lazyVariable.evalValue(c);
-                });
-                case FUNCTION -> {
+                case VARIABLE:
+                    stack.push((c, t) -> {
+                        if (!c.isAVariable(token.surface)) // new variable
+                        {
+                            c.setVariable(token.surface, (cc, tt) -> Value.ZERO.reboundedTo(token.surface));
+                        }
+                        LazyValue lazyVariable = c.getVariable(token.surface);
+                        return lazyVariable.evalValue(c);
+                    });
+                    break;
+                case FUNCTION: {
                     String name = token.surface.toLowerCase(Locale.ROOT);
                     ILazyFunction f;
                     ArrayList<LazyValue> p;
@@ -590,19 +605,29 @@ public class Expression implements Cloneable {
                         stack.pop();
                     }
                     stack.push((c, t) -> f.lazyEval(c, t, this, token, p).evalValue(c));
+                    break;
                 }
-                case OPEN_PAREN -> stack.push(LazyValue.PARAMS_START);
-                case LITERAL -> stack.push((c, t) ->
-                {
-                    try {
-                        return new NumericValue(token.surface);
-                    } catch (NumberFormatException exception) {
-                        throw new ExpressionException(this, token, "Not a number");
-                    }
-                });
-                case STRING -> stack.push((c, t) -> new StringValue(token.surface)); // was originally null
-                case HEX_LITERAL -> stack.push((c, t) -> new NumericValue(new BigInteger(token.surface.substring(2), 16).doubleValue()));
-                default -> throw new ExpressionException(this, token, "Unexpected token '" + token.surface + "'");
+                case OPEN_PAREN:
+                    stack.push(LazyValue.PARAMS_START);
+                    break;
+                case LITERAL:
+                    stack.push((c, t) ->
+                    {
+                        try {
+                            return new NumericValue(token.surface);
+                        } catch (NumberFormatException exception) {
+                            throw new ExpressionException(this, token, "Not a number");
+                        }
+                    });
+                    break;
+                case STRING:
+                    stack.push((c, t) -> new StringValue(token.surface)); // was originally null
+                    break;
+                case HEX_LITERAL:
+                    stack.push((c, t) -> new NumericValue(new BigInteger(token.surface.substring(2), 16).doubleValue()));
+                    break;
+                default:
+                    throw new ExpressionException(this, token, "Unexpected token '" + token.surface + "'");
             }
         }
         return stack.pop();

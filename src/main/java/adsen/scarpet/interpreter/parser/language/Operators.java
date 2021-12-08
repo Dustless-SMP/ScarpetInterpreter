@@ -16,15 +16,17 @@ import java.util.List;
 import java.util.Map;
 
 public class Operators {
-
-
-    public static final Map<String, Integer> precedence = new HashMap<>() {{
+    public static final Map<String, Integer> precedence = new HashMap<String, Integer>() {{
         put("unary+-!", 60);
-        put("exponent^", 40);
-        put("multiplication*/%", 30);
-        put("addition+-", 20);
+        put("exponent**", 50);
+        put("multiplication*/%", 40);
+        put("addition+-", 30);
+        put("shift<<>>", 20);
         put("compare>=><=<", 10);
-        put("equal==!=", 7);
+        put("equal==!=", 9);
+        put("bit-and&", 8);
+        put("bit-or|", 7);
+        put("bit-xor^", 6);
         put("and&&", 5);
         put("or||", 4);
         put("assign=<>", 3);
@@ -33,16 +35,16 @@ public class Operators {
     }};
 
     public static void apply(Expression expression) {
-        expression.addBinaryOperator("+", precedence.get("addition+-"), true, Value::add);
-        expression.addBinaryOperator("-", precedence.get("addition+-"), true, Value::subtract);
-        expression.addBinaryOperator("*", precedence.get("multiplication*/%"), true, Value::multiply);
-        expression.addBinaryOperator("/", precedence.get("multiplication*/%"), true, Value::divide);
-        expression.addBinaryOperator("%", precedence.get("multiplication*/%"), true, (v1, v2) ->
+        expression.addBinaryOperator("+", "addition+-", true, Value::add);
+        expression.addBinaryOperator("-", "addition+-", true, Value::subtract);
+        expression.addBinaryOperator("*", "multiplication*/%", true, Value::multiply);
+        expression.addBinaryOperator("/", "multiplication*/%", true, Value::divide);
+        expression.addBinaryOperator("%", "multiplication*/%", true, (v1, v2) ->
                 new NumericValue(NumericValue.asNumber(v1).getDouble() % NumericValue.asNumber(v2).getDouble()));
-        expression.addBinaryOperator("^", precedence.get("exponent^"), false, (v1, v2) ->
+        expression.addBinaryOperator("^", "exponent^", false, (v1, v2) ->
                 new NumericValue(Math.pow(NumericValue.asNumber(v1).getDouble(), NumericValue.asNumber(v2).getDouble())));
 
-        expression.addLazyBinaryOperator("&&", precedence.get("and&&"), false, (c, t, lv1, lv2) ->
+        expression.addLazyBinaryOperator("&&", "and&&", false, (c, t, lv1, lv2) ->
         {
             Value v1 = lv1.evalValue(c, Context.BOOLEAN);
             if (!v1.getBoolean()) return (cc, tt) -> v1;
@@ -50,7 +52,7 @@ public class Operators {
             return v2.getBoolean() ? ((cc, tt) -> v2) : LazyValue.FALSE;
         });
 
-        expression.addLazyBinaryOperator("||", precedence.get("or||"), false, (c, t, lv1, lv2) ->
+        expression.addLazyBinaryOperator("||", "or||", false, (c, t, lv1, lv2) ->
         {
             Value v1 = lv1.evalValue(c, Context.BOOLEAN);
             if (v1.getBoolean()) return (cc, tt) -> v1;
@@ -58,22 +60,57 @@ public class Operators {
             return v2.getBoolean() ? ((cc, tt) -> v2) : LazyValue.FALSE;
         });
 
-        expression.addBinaryOperator("~", precedence.get("compare>=><=<"), true, Value::in);
+        expression.addBinaryOperator("&", "bit-and&", false, (v1, v2) ->
+                NumericValue.of(NumericValue.asNumber(v1).getLong() & NumericValue.asNumber(v2).getLong()));
 
-        expression.addBinaryOperator(">", precedence.get("compare>=><=<"), false, (v1, v2) ->
+        expression.addBinaryOperator("|", "bit-or|", false, (v1, v2) ->
+                NumericValue.of(NumericValue.asNumber(v1).getLong() | NumericValue.asNumber(v2).getLong()));
+
+        expression.addBinaryOperator("^", "bit-xor^", false, (v1, v2) ->
+                NumericValue.of(NumericValue.asNumber(v1).getLong() ^ NumericValue.asNumber(v2).getLong()));
+
+        expression.addBinaryOperator(">>", "shift<<>>", false, (v1, v2) ->
+                NumericValue.of(NumericValue.asNumber(v1).getLong() >> NumericValue.asNumber(v2).getLong()));
+
+        expression.addBinaryOperator("<<", "shift<<>>", false, (v1, v2) ->
+                NumericValue.of(NumericValue.asNumber(v1).getLong() << NumericValue.asNumber(v2).getLong()));
+
+        expression.addBinaryOperator(">>>", "shift<<>>", false, (v1, v2) -> {
+            long num = NumericValue.asNumber(v1).getLong();
+            long amount = NumericValue.asNumber(v2).getLong() % 64;
+
+            long amountToRoll = 64 - amount;
+            long rolledBits = ((-1L) << amountToRoll) >> amountToRoll;
+            long rolledAmount = (num & rolledBits) << amountToRoll;
+            return NumericValue.of(num >> amount | rolledAmount);
+        });
+
+        expression.addBinaryOperator("<<<", "shift<<>>", false, (v1, v2) -> {
+            long num = NumericValue.asNumber(v1).getLong();
+            long amount = NumericValue.asNumber(v2).getLong() % 64;
+
+            long amountToRoll = 64 - amount;
+            long rolledBits = ((-1L) >> amountToRoll) << amountToRoll;
+            long rolledAmount = (num & rolledBits) >> amountToRoll;
+            return NumericValue.of(num << amount | rolledAmount);
+        });
+
+        expression.addBinaryOperator("~", "compare>=><=<", true, Value::in);
+
+        expression.addBinaryOperator(">", "compare>=><=<", false, (v1, v2) ->
                 v1.compareTo(v2) > 0 ? Value.TRUE : Value.FALSE);
-        expression.addBinaryOperator(">=", precedence.get("compare>=><=<"), false, (v1, v2) ->
+        expression.addBinaryOperator(">=", "compare>=><=<", false, (v1, v2) ->
                 v1.compareTo(v2) >= 0 ? Value.TRUE : Value.FALSE);
-        expression.addBinaryOperator("<", precedence.get("compare>=><=<"), false, (v1, v2) ->
+        expression.addBinaryOperator("<", "compare>=><=<", false, (v1, v2) ->
                 v1.compareTo(v2) < 0 ? Value.TRUE : Value.FALSE);
-        expression.addBinaryOperator("<=", precedence.get("compare>=><=<"), false, (v1, v2) ->
+        expression.addBinaryOperator("<=", "compare>=><=<", false, (v1, v2) ->
                 v1.compareTo(v2) <= 0 ? Value.TRUE : Value.FALSE);
-        expression.addBinaryOperator("==", precedence.get("equal==!="), false, (v1, v2) ->
+        expression.addBinaryOperator("==", "equal==!=", false, (v1, v2) ->
                 v1.equals(v2) ? Value.TRUE : Value.FALSE);
-        expression.addBinaryOperator("!=", precedence.get("equal==!="), false, (v1, v2) ->
+        expression.addBinaryOperator("!=", "equal==!=", false, (v1, v2) ->
                 v1.equals(v2) ? Value.FALSE : Value.TRUE);
 
-        expression.addLazyBinaryOperator("=", precedence.get("assign=<>"), false, (c, t, lv1, lv2) ->
+        expression.addLazyBinaryOperator("=", "assign=<>", false, (c, t, lv1, lv2) ->
         {
             Value v1 = lv1.evalValue(c);
             Value v2 = lv2.evalValue(c);
@@ -100,7 +137,7 @@ public class Operators {
             return boundedLHS;
         });
 
-        expression.addLazyBinaryOperator("+=", precedence.get("assign=<>"), false, (c, t, lv1, lv2) ->
+        expression.addLazyBinaryOperator("+=", "assign=<>", false, (c, t, lv1, lv2) ->
         {
             Value v1 = lv1.evalValue(c);
             Value v2 = lv2.evalValue(c);
@@ -134,7 +171,7 @@ public class Operators {
             return boundedLHS;
         });
 
-        expression.addLazyBinaryOperator("<>", precedence.get("assign=<>"), false, (c, t, lv1, lv2) ->
+        expression.addLazyBinaryOperator("<>", "assign=<>", false, (c, t, lv1, lv2) ->
         {
             Value v1 = lv1.evalValue(c);
             Value v2 = lv2.evalValue(c);
@@ -174,19 +211,20 @@ public class Operators {
 
         expression.addUnaryOperator("+", false, (v) -> new NumericValue(NumericValue.asNumber(v).getDouble()));
 
-        expression.addLazyUnaryOperator("!", precedence.get("unary+-!"), false, (c, t, lv) -> lv.evalValue(c, Context.BOOLEAN).getBoolean() ? (cc, tt) -> Value.FALSE : (cc, tt) -> Value.TRUE); // might need context boolean
+        expression.addLazyUnaryOperator("!", "unary+-!", false, (c, t, lv) -> lv.evalValue(c, Context.BOOLEAN).getBoolean() ? (cc, tt) -> Value.FALSE : (cc, tt) -> Value.TRUE); // might need context boolean
 
-        expression.addLazyBinaryOperator(";", Operators.precedence.get("nextop;"), true, (c, t, lv1, lv2) ->
+        expression.addLazyBinaryOperator(";", "nextop;", true, (c, t, lv1, lv2) ->
         {
             lv1.evalValue(c, Context.VOID);
             return lv2;
         });
 
         //assigns const procedure to the lhs, returning its previous value
-        expression.addLazyBinaryOperatorWithDelegation("->", Operators.precedence.get("def->"), false, (c, type, e, t, lv1, lv2) ->
+        expression.addLazyBinaryOperatorWithDelegation("->", "def->", false, (c, type, e, t, lv1, lv2) ->
         {
             Value v1 = lv1.evalValue(c, Context.SIGNATURE);
-            if (v1 instanceof FunctionSignatureValue sign) {
+            if (v1 instanceof FunctionSignatureValue) {
+                FunctionSignatureValue sign = (FunctionSignatureValue) v1;
                 expression.addContextFunction(c, sign.getName(), e, t, sign.getArgs(), sign.getGlobals(), lv2);
             } else {
                 v1.assertAssignable();
